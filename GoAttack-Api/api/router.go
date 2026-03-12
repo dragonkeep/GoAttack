@@ -30,7 +30,7 @@ func SetupRouter() *gin.Engine {
 	}))
 
 	// 静态文件服务（用于访问上传的头像等文件）
-	r.Static("/uploads", "./uploads")
+	r.Static("/api/uploads", "./uploads")
 
 	// 登录接口（公开，不需要认证）
 	r.POST("/api/user/login", admin.Login)

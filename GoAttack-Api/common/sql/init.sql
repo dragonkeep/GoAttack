@@ -90,7 +90,7 @@ INSERT IGNORE INTO `user` (
     'admin',
     '$2a$10$KwjLTl6X0Jnq/q2CyI6d0.9ucFz3BxNxcJI.wC55LS3b5VH13RPp2',
     'admin',
-    'http://localhost:3000/uploads/avatars/admin_1768566268.jpg',
+    '/api/uploads/avatars/admin.jpg',
     '2026-01-13 11:35:59'
 );
 -- ============================================

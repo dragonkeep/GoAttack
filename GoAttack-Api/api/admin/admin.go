@@ -210,9 +210,8 @@ func GetUserInfo(c *gin.Context) {
 	// 从数据库获取用户头像
 	avatar, err := mysql.GetUserAvatar(username.(string))
 	if err != nil || avatar == "" {
-		// fmt.Printf("获取头像失败或为空 - 用户: %s, 错误: %v, 头像: %s\n", username, err, avatar)
-		// 如果没有头像或获取失败，使用默认头像
-		avatar = "https://api.dicebear.com/7.x/avataaars/svg?seed=" + username.(string)
+		// 如果没有头像或获取失败，使用默认本地头像
+		avatar = "/api/uploads/avatars/admin.jpg"
 	}
 
 	// 获取角色和ID
@@ -485,8 +484,8 @@ func UploadAvatar(c *gin.Context) {
 		return
 	}
 
-	// 生成访问URL（完整URL，指向后端服务）
-	avatarURL := fmt.Sprintf("http://localhost:3000/uploads/avatars/%s", filename)
+	// 生成访问URL（相对路径，为了兼容 Docker 部署和域名部署）
+	avatarURL := fmt.Sprintf("/api/uploads/avatars/%s", filename)
 
 	// 更新数据库
 	if err := mysql.UpdateUserAvatar(username.(string), avatarURL); err != nil {
