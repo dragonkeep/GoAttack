@@ -145,6 +145,9 @@ func (s *HostScanner) PingHost(host string) HostResult {
 	reply := make([]byte, 1500)
 	n, _, err := conn.ReadFrom(reply)
 	if err != nil {
+		// ICMP 超时：说明目标主机过滤了 ICMP 包，或者主机不存在。
+		// 直接判定不存活，不尝试 TCP 回退——若 ICMP 都被过滤，TCP 大概率也会被过滤，
+		// 继续探测只会浪费时间。"跳过存活探测"的需求应通过关闭 EnableAliveScan 实现。
 		result.Error = fmt.Errorf("接收ICMP响应超时: %v", err)
 		return result
 	}
@@ -168,31 +171,35 @@ func (s *HostScanner) PingHost(host string) HostResult {
 	return result
 }
 
-// fallbackTCPPing 当ICMP权限不足时，使用TCP连接作为备用探测方法
+// fallbackTCPPing 仅在无法创建 ICMP 原始套接字时使用（权限不足，如 Docker 非特权模式）。
+// 注意：此函数不处理"ICMP 被防火墙过滤"的情况——那种情况下 PingHost 已直接
+// 返回 IsAlive=false，无需 TCP 回退（TCP 同样可能被过滤，继续尝试只会浪费时间）。
 func (s *HostScanner) fallbackTCPPing(host string) HostResult {
 	result := HostResult{
 		IP:      host,
 		IsAlive: false,
 	}
 
-	// 常用端口列表，用于TCP探测
-	commonPorts := []string{"80", "443", "22", "21", "3389"}
+	// 只探测最常见的 3 个端口，减少无响应时的等待总时长
+	commonPorts := []string{"80", "443", "22"}
+
+	// 每个端口的超时上限为 1 秒，避免在慢速网络中单 IP 耗时过长
+	portTimeout := s.Timeout
+	if portTimeout > 1*time.Second {
+		portTimeout = 1 * time.Second
+	}
 
 	for _, port := range commonPorts {
-		target := net.JoinHostPort(host, port)
-		conn, err := net.DialTimeout("tcp", target, s.Timeout)
+		conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), portTimeout)
 		if err == nil {
 			conn.Close()
 			result.IsAlive = true
 			log.Info("[主机探测-TCP] %s 在线 (通过端口 %s 检测)", host, port)
-			break
+			return result
 		}
 	}
 
-	if !result.IsAlive {
-		result.Error = fmt.Errorf("主机无响应")
-	}
-
+	result.Error = fmt.Errorf("主机无响应")
 	return result
 }
 

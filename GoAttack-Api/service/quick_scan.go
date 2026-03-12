@@ -30,7 +30,7 @@ type quickScanOptions struct {
 }
 
 func parseQuickScanOptions(options string) quickScanOptions {
-	timeout := 3 * time.Second
+	timeout := 1 * time.Second
 	concurrency := 50
 	ports := "top1000"
 	enableWeakPassword := true
@@ -124,13 +124,28 @@ func ExecuteQuickScan(ctx context.Context, taskID int, target string, options st
 	redisdb.UpdateTaskProgress(taskID, redisProgress)
 
 	// Stage 2: Port scan (top1000 TCP only)
-	portTargetStr := buildTargetString(aliveTargets)
-	if portTargetStr == "" {
-		portTargetStr = target
-		redisProgress.Message = "Alive scan found no hosts, fallback to original targets for port scan"
+	// 存活探测已运行且没有发现任何存活主机时，不做端口扫描。
+	// 理由：若目标完全无响应（不存在/全部封锁），对其扫描 top1000 端口
+	// 每个端口都要等 2 秒超时 × 1000 端口 / 50 并发 ≈ 40 秒，毫无意义。
+	// 若用户希望跳过存活探测直接扫端口，应使用自定义扫描并关闭 EnableAliveScan。
+	if len(aliveTargets) == 0 {
+		log.Info("[QuickScan] Alive scan found no live hosts, skipping port scan and subsequent stages")
+		redisProgress.Status = "completed"
+		redisProgress.Progress = 100
+		redisProgress.Message = "Quick scan completed: no live hosts found"
 		redisdb.UpdateTaskProgress(taskID, redisProgress)
+		if err := mysql.UpdateTaskProgress(taskID, "completed", 100); err != nil {
+			return fmt.Errorf("update task status failed: %v", err)
+		}
+		go func() {
+			time.Sleep(10 * time.Second)
+			redisdb.DeleteTaskProgress(taskID)
+		}()
+		log.Info("[QuickScan] Task #%d completed (no live hosts) in %v", taskID, time.Since(startTime))
+		return nil
 	}
 
+	portTargetStr := buildTargetString(aliveTargets)
 	portProgress := func(current, total, found int, currentTarget, message string) {
 		redisProgress.ScannedTargets = current
 		redisProgress.TotalTargets = total
@@ -389,8 +404,29 @@ func ExecuteCustomScan(ctx context.Context, taskID int, target string, options s
 	var portResults []scanport.PortScanServiceResult
 
 	if opts.EnablePortScan {
-		portTargetStr := buildTargetString(aliveTargets)
-		if portTargetStr == "" {
+		var portTargetStr string
+		if opts.EnableAliveScan {
+			// 开启了存活探测：只对存活主机做端口扫描
+			// 若 0 个存活，说明目标全部无响应，跳过端口扫描（及后续阶段）
+			if len(aliveTargets) == 0 {
+				log.Info("[CustomScan] Alive scan found no live hosts, skipping port scan and subsequent stages")
+				redisProgress.Status = "completed"
+				redisProgress.Progress = 100
+				redisProgress.Message = "Custom scan completed: no live hosts found"
+				redisdb.UpdateTaskProgress(taskID, redisProgress)
+				if err := mysql.UpdateTaskProgress(taskID, "completed", 100); err != nil {
+					return fmt.Errorf("update task status failed: %v", err)
+				}
+				go func() {
+					time.Sleep(10 * time.Second)
+					redisdb.DeleteTaskProgress(taskID)
+				}()
+				log.Info("[CustomScan] Task #%d completed (no live hosts) in %v", taskID, time.Since(startTime))
+				return nil
+			}
+			portTargetStr = buildTargetString(aliveTargets)
+		} else {
+			// 未开启存活探测：直接对用户给定的所有目标做端口扫描
 			portTargetStr = target
 		}
 
@@ -624,11 +660,4 @@ func countEnabledStages(opts customScanOptions) int {
 		count++
 	}
 	return count
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

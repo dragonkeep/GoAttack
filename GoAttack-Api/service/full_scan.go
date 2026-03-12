@@ -119,13 +119,26 @@ func ExecuteFullScan(ctx context.Context, taskID int, target string, options str
 	redisdb.UpdateTaskProgress(taskID, redisProgress)
 
 	// Stage 2: port scan (top1000)
-	portTargetStr := buildTargetString(aliveTargets)
-	if portTargetStr == "" {
-		portTargetStr = target
-		redisProgress.Message = "Alive scan found no hosts, fallback to original targets for port scan"
+	// 存活探测没有发现任何存活主机时，直接结束扫描，跳过后续所有阶段。
+	// 理由与 quick_scan 相同：对一个无响应目标继续做端口扫描只会浪费大量时间。
+	if len(aliveTargets) == 0 {
+		log.Info("[FullScan] Alive scan found no live hosts, skipping port scan and subsequent stages")
+		redisProgress.Status = "completed"
+		redisProgress.Progress = 100
+		redisProgress.Message = "Full scan completed: no live hosts found"
 		redisdb.UpdateTaskProgress(taskID, redisProgress)
+		if err := mysql.UpdateTaskProgress(taskID, "completed", 100); err != nil {
+			return fmt.Errorf("update task status failed: %v", err)
+		}
+		go func() {
+			time.Sleep(10 * time.Second)
+			redisdb.DeleteTaskProgress(taskID)
+		}()
+		log.Info("[FullScan] Task #%d completed (no live hosts) in %v", taskID, time.Since(startTime))
+		return nil
 	}
 
+	portTargetStr := buildTargetString(aliveTargets)
 	portProgress := func(current, total, found int, currentTarget, message string) {
 		redisProgress.ScannedTargets = current
 		redisProgress.TotalTargets = total
