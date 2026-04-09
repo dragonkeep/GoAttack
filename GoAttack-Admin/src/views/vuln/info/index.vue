@@ -620,15 +620,9 @@ const handleFilesSelected = async (e: Event) => {
   if (!files || files.length === 0) return
 
   scanLoading.value = true
-  const formData = new FormData()
-  let yamlCount = 0
-  for (let i = 0; i < files.length; i += 1) {
-    const file = files[i]
-    if (file.name.endsWith('.yaml') || file.name.endsWith('.yml')) {
-      formData.append('files', file)
-      yamlCount += 1
-    }
-  }
+  const yamlFiles = Array.from(files).filter((file) => file.name.endsWith('.yaml') || file.name.endsWith('.yml'))
+
+  const yamlCount = yamlFiles.length
 
   if (yamlCount === 0) {
     Message.warning('未在所选目录中找到 YAML 格式的 POC 模板')
@@ -637,10 +631,53 @@ const handleFilesSelected = async (e: Event) => {
     return
   }
 
+  const MAX_BATCH_FILES = 200
+  const MAX_BATCH_BYTES = 50 * 1024 * 1024
+  const batchState = yamlFiles.reduce(
+    (acc, file) => {
+      const shouldSplit =
+        acc.currentBatch.length >= MAX_BATCH_FILES || (acc.currentBatch.length > 0 && acc.currentSize + file.size > MAX_BATCH_BYTES)
+
+      if (shouldSplit) {
+        acc.batches.push(acc.currentBatch)
+        acc.currentBatch = []
+        acc.currentSize = 0
+      }
+
+      acc.currentBatch.push(file)
+      acc.currentSize += file.size
+      return acc
+    },
+    {
+      batches: [] as File[][],
+      currentBatch: [] as File[],
+      currentSize: 0,
+    }
+  )
+
+  const batches = batchState.currentBatch.length > 0 ? [...batchState.batches, batchState.currentBatch] : batchState.batches
+
   try {
-    Message.info(`开始上传并导入 ${yamlCount} 个模板文件，请耐心等待...`)
-    const { data } = await uploadDirectoryPocs(formData)
-    Message.success(`扫描导入成功！共发现有效POC模板：${data.valid_files}个`)
+    Message.info(`开始上传并导入 ${yamlCount} 个模板文件，共 ${batches.length} 批，请耐心等待...`)
+
+    const totals = await batches.reduce(
+      (chain, batch, index) =>
+        chain.then(async (acc) => {
+          const formData = new FormData()
+          batch.forEach((file) => formData.append('files', file))
+
+          Message.info(`正在上传第 ${index + 1}/${batches.length} 批（${batch.length} 个模板）...`)
+          const { data } = await uploadDirectoryPocs(formData)
+
+          return {
+            totalValid: acc.totalValid + (data.valid_files || 0),
+            totalScanned: acc.totalScanned + (data.total_files || 0),
+          }
+        }),
+      Promise.resolve({ totalValid: 0, totalScanned: 0 })
+    )
+
+    Message.success(`分批导入完成！共扫描 ${totals.totalScanned} 个文件，有效POC模板 ${totals.totalValid} 个`)
     fetchData()
   } catch (err: any) {
     // 拦截器已处理

@@ -329,7 +329,7 @@ func (s *PocScanner) parseTemplate(filePath string) (*mysql.PocTemplate, error) 
 
 	// 确定分类（从文件路径推断）
 	relPath, _ := filepath.Rel(s.templatesDir, filePath)
-	category := strings.Split(relPath, string(os.PathSeparator))[0]
+	category := deriveCategory(relPath)
 
 	// 处理 author（可能是字符串或数组）
 	author := extractStringOrArray(tmpl.Info.Author)
@@ -525,4 +525,29 @@ func extractArrayJSON(val interface{}) string {
 
 	data, _ := json.Marshal(arr)
 	return string(data)
+}
+
+// deriveCategory 从相对路径推断分类。
+// 当上传目录被浏览器扁平化后，relPath 可能只是文件名，这时回退到 custom，避免把超长文件名写入 category。
+func deriveCategory(relPath string) string {
+	cleanPath := strings.TrimSpace(filepath.ToSlash(relPath))
+	if cleanPath == "" {
+		return "custom"
+	}
+
+	parts := strings.Split(cleanPath, "/")
+	if len(parts) <= 1 {
+		return "custom"
+	}
+
+	cat := strings.TrimSpace(parts[0])
+	if cat == "" {
+		return "custom"
+	}
+
+	// 与数据库 VARCHAR(625) 对齐，防止异常路径导致长度超限。
+	if len(cat) > 625 {
+		cat = cat[:625]
+	}
+	return cat
 }

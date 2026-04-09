@@ -372,7 +372,7 @@ CREATE TABLE IF NOT EXISTS `poc_template` (
     `author` VARCHAR(255) COMMENT '作者',
     
     -- 分类信息
-    `category` VARCHAR(100) COMMENT '分类：cves/vulnerabilities/exposures/misconfiguration等',
+    `category` VARCHAR(625) COMMENT '分类：cves/vulnerabilities/exposures/misconfiguration等',
     `severity` VARCHAR(20) NOT NULL COMMENT '严重程度：critical/high/medium/low/info',
     `tags` JSON COMMENT '标签列表（JSON数组）',
     

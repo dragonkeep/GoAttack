@@ -106,8 +106,8 @@ export function uploadDirectoryPocs(data: FormData): UnwrappedResponse<{ total_f
     headers: {
       'Content-Type': 'multipart/form-data',
     },
-    // 增加超时时间，以防文件太多
-    timeout: 300000,
+    // 大规模批量导入场景需要更长处理时间（30分钟）
+    timeout: 1800000,
   }) as any
 }
 

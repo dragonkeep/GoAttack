@@ -107,6 +107,7 @@ func autoMigrate() {
 			last_cleared_at TIMESTAMP DEFAULT '2000-01-01 00:00:00' COMMENT '上次清空时间',
 			INDEX idx_username (username)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='通知已读时间追踪表'`,
+		`ALTER TABLE poc_template MODIFY COLUMN category VARCHAR(625) COMMENT '分类：cves/vulnerabilities/exposures/misconfiguration等'`,
 	}
 	for _, s := range sqls {
 		if _, err := DB.Exec(s); err != nil {
