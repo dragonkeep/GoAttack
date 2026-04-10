@@ -6,7 +6,7 @@ import (
 	redisdb "GoAttack/common/redis"
 	"GoAttack/model"
 	servicecommon "GoAttack/service/common"
-	"GoAttack/service/plugins"
+	"GoAttack/service/plugincore"
 	scanbrute "GoAttack/service/scan_brute"
 	scanhost "GoAttack/service/scan_host"
 	scanpoc "GoAttack/service/scan_poc"
@@ -194,60 +194,14 @@ func ExecuteFullScan(ctx context.Context, taskID int, target string, options str
 		redisProgress.Message = "Running Directory Scan plugin..."
 		redisdb.UpdateTaskProgress(taskID, redisProgress)
 
-		// Build IP to Target mapping to preserve hostnames
-		ipToTargets := make(map[string][]*servicecommon.Target)
-		for _, t := range scanTargets {
-			if t.IP != "" {
-				ipToTargets[t.IP] = append(ipToTargets[t.IP], t)
-			}
-		}
-
-		rows, err := mysql.GetHTTPPortsByTaskID(taskID)
-		if err == nil {
-			defer rows.Close()
-			for rows.Next() {
-				var id int64
-				var ip string
-				var port int
-				var protocol string
-				var serviceName string
-				if err := rows.Scan(&id, &ip, &port, &protocol, &serviceName); err == nil {
-					hostToUse := ip
-					if tList, ok := ipToTargets[ip]; ok && len(tList) > 0 {
-						for _, t := range tList {
-							if t.Host != "" && t.Host != t.IP {
-								hostToUse = t.Host
-								break
-							}
-						}
-						if hostToUse == ip {
-							hostToUse = tList[0].Host
-						}
-					}
-
-					scheme := "http"
-					if protocol == "https" || port == 443 || port == 8443 {
-						scheme = "https"
-					}
-					if strings.Contains(strings.ToLower(serviceName), "https") {
-						scheme = "https"
-					}
-					targetUrl := fmt.Sprintf("%s://%s:%d", scheme, hostToUse, port)
-					_ = plugins.RunGobuster(ctx, taskID, targetUrl, "dir")
-				}
-			}
-		} else {
-			// Fallback: Use original targets if failed to get ports from DB
-			for _, t := range scanTargets {
-				targetUrl := t.Original
-				if t.Port > 0 {
-					targetUrl = fmt.Sprintf("%s:%d", t.Host, t.Port)
-				} else if targetUrl == "" {
-					targetUrl = t.Host
-				}
-				_ = plugins.RunGobuster(ctx, taskID, targetUrl, "dir")
-			}
-		}
+		dirTargets := buildDirScanTargets(taskID, scanTargets)
+		_ = plugincore.RunStage(ctx, &plugincore.ExecContext{
+			TaskID:     taskID,
+			TaskType:   "full",
+			TaskTarget: target,
+			Stage:      plugincore.StageDirScan,
+			Targets:    dirTargets,
+		})
 	}
 
 	// Stage 4: web fingerprint (covers original port targets + gobuster discovered paths)
@@ -300,9 +254,13 @@ func ExecuteFullScan(ctx context.Context, taskID int, target string, options str
 	if opts.EnableSubdomainEnum {
 		redisProgress.Message = "Running Subdomain Enumeration plugin..."
 		redisdb.UpdateTaskProgress(taskID, redisProgress)
-		for _, t := range scanTargets {
-			_ = plugins.RunGobuster(ctx, taskID, t.Host, "dns")
-		}
+		_ = plugincore.RunStage(ctx, &plugincore.ExecContext{
+			TaskID:     taskID,
+			TaskType:   "full",
+			TaskTarget: target,
+			Stage:      plugincore.StageSubdomainEnum,
+			Targets:    buildSubdomainTargets(scanTargets),
+		})
 	}
 
 	// Finalize
@@ -751,6 +709,135 @@ func buildPocTargetsFromFingerprints(taskID int) (map[string][]int, map[string]*
 	}
 
 	return result, templateByID, nil
+}
+
+func buildPocTargetsWithAllTemplates(rawTarget string, scanTargets []*servicecommon.Target) (map[string][]int, map[string]*mysql.PocTemplate, error) {
+	pocs, err := mysql.GetActivePocTemplates()
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(pocs) == 0 {
+		return map[string][]int{}, map[string]*mysql.PocTemplate{}, nil
+	}
+
+	allIDs := make([]int, 0, len(pocs))
+	templateByID := make(map[string]*mysql.PocTemplate)
+	for _, poc := range pocs {
+		if poc == nil || !poc.IsActive || !isHTTPProtocol(poc.Protocol) {
+			continue
+		}
+		if poc.TemplateID == "" {
+			continue
+		}
+		templateByID[poc.TemplateID] = poc
+		allIDs = append(allIDs, int(poc.ID))
+	}
+
+	if len(allIDs) == 0 {
+		return map[string][]int{}, templateByID, nil
+	}
+
+	targetURLs := collectPocTargetURLs(rawTarget, scanTargets)
+	if len(targetURLs) == 0 {
+		return map[string][]int{}, templateByID, nil
+	}
+
+	sort.Ints(allIDs)
+	result := make(map[string][]int, len(targetURLs))
+	for _, targetURL := range targetURLs {
+		result[targetURL] = append([]int(nil), allIDs...)
+	}
+
+	return result, templateByID, nil
+}
+
+func collectPocTargetURLs(rawTarget string, scanTargets []*servicecommon.Target) []string {
+	targets := make([]string, 0)
+	seen := make(map[string]struct{})
+
+	for _, target := range scanTargets {
+		if candidate := buildPocTargetURLFromScanTarget(target); candidate != "" {
+			appendUniqueTarget(&targets, seen, candidate)
+		}
+	}
+
+	if len(targets) > 0 {
+		sort.Strings(targets)
+		return targets
+	}
+
+	parser := servicecommon.NewTargetParser(false)
+	parsedTargets, err := parser.ParseTargets(rawTarget)
+	if err == nil {
+		for _, target := range parsedTargets {
+			if candidate := buildPocTargetURLFromScanTarget(target); candidate != "" {
+				appendUniqueTarget(&targets, seen, candidate)
+			}
+		}
+	}
+
+	if len(targets) == 0 {
+		for _, item := range strings.FieldsFunc(rawTarget, func(r rune) bool {
+			return r == '\n' || r == '\r' || r == ',' || r == ';' || r == ' ' || r == '\t'
+		}) {
+			if candidate := normalizePocTargetURL(item); candidate != "" {
+				appendUniqueTarget(&targets, seen, candidate)
+			}
+		}
+	}
+
+	sort.Strings(targets)
+	return targets
+}
+
+func buildPocTargetURLFromScanTarget(target *servicecommon.Target) string {
+	if target == nil {
+		return ""
+	}
+
+	if candidate := normalizePocTargetURL(target.Original); candidate != "" {
+		return candidate
+	}
+
+	host := strings.TrimSpace(target.Host)
+	if host == "" {
+		host = strings.TrimSpace(target.IP)
+	}
+	if host == "" {
+		return ""
+	}
+
+	if target.Port > 0 {
+		scheme := "http"
+		if target.Port == 443 || target.Port == 8443 {
+			scheme = "https"
+		}
+		return fmt.Sprintf("%s://%s:%d", scheme, host, target.Port)
+	}
+
+	return "http://" + host
+}
+
+func normalizePocTargetURL(candidate string) string {
+	candidate = strings.TrimSpace(candidate)
+	if candidate == "" {
+		return ""
+	}
+
+	if strings.HasPrefix(candidate, "http://") || strings.HasPrefix(candidate, "https://") {
+		u, err := url.Parse(candidate)
+		if err != nil || u.Host == "" {
+			return ""
+		}
+		u.Fragment = ""
+		return strings.TrimSpace(u.String())
+	}
+
+	if strings.Contains(candidate, "/") {
+		return ""
+	}
+
+	return "http://" + candidate
 }
 
 func loadWebFingerprints(taskID int) ([]webFingerprintRecord, error) {

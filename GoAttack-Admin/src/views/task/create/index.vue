@@ -73,7 +73,23 @@
           <a-divider orientation="left">扫描模块（默认全开，可按需关闭）</a-divider>
           <a-row :gutter="16">
             <a-col :span="8">
-              <a-form-item label="目录扫描">
+              <a-form-item>
+                <template #label>
+                  <span>
+                    目录扫描
+                    <a-tooltip position="top">
+                      <template #content>
+                        <div style="max-width: 360px; line-height: 1.6">
+                          目录扫描依赖 gobuster 插件。<br />
+                          请先在插件管理中启用 gobuster，否则该选项会被禁用。
+                        </div>
+                      </template>
+                      <icon-question-circle
+                        style="margin-left: 4px; color: var(--color-text-3); cursor: help"
+                      />
+                    </a-tooltip>
+                  </span>
+                </template>
                 <a-checkbox v-model="scanOptions.enable_dir_scan" :disabled="!isGobusterEnabled">
                   启用 Web 目录/文件扫描
                   <span
@@ -84,7 +100,23 @@
               </a-form-item>
             </a-col>
             <a-col :span="8">
-              <a-form-item label="子域名枚举">
+              <a-form-item>
+                <template #label>
+                  <span>
+                    子域名枚举
+                    <a-tooltip position="top">
+                      <template #content>
+                        <div style="max-width: 360px; line-height: 1.6">
+                          子域名枚举依赖 gobuster 插件。<br />
+                          请先在插件管理中启用 gobuster，否则该选项会被禁用。
+                        </div>
+                      </template>
+                      <icon-question-circle
+                        style="margin-left: 4px; color: var(--color-text-3); cursor: help"
+                      />
+                    </a-tooltip>
+                  </span>
+                </template>
                 <a-checkbox v-model="scanOptions.enable_subdomain_enum" :disabled="!isGobusterEnabled">
                   启用子域名枚举扫描
                   <span
@@ -95,7 +127,22 @@
               </a-form-item>
             </a-col>
             <a-col :span="8">
-              <a-form-item label="弱口令检测">
+              <a-form-item>
+                <template #label>
+                  <span>
+                    弱口令检测
+                    <a-tooltip position="top">
+                      <template #content>
+                        <div style="max-width: 360px; line-height: 1.6">
+                          开启后，对 mysql、rdp、ssh 等服务进行弱口令爆破检测。
+                        </div>
+                      </template>
+                      <icon-question-circle
+                        style="margin-left: 4px; color: var(--color-text-3); cursor: help"
+                      />
+                    </a-tooltip>
+                  </span>
+                </template>
                 <a-checkbox v-model="scanOptions.enable_weak_password">
                   启用服务弱口令暴力破解
                 </a-checkbox>
@@ -148,21 +195,73 @@
           </a-row>
           <a-row :gutter="16">
             <a-col :span="8">
-              <a-form-item label="POC 漏洞验证">
-                <a-checkbox
-                  v-model="scanOptions.enable_poc_verify"
-                  :disabled="!scanOptions.enable_web_fingerprint"
-                >
+              <a-form-item>
+                <template #label>
+                  <span>
+                    POC 漏洞验证
+                    <a-tooltip position="top">
+                      <template #content>
+                        <div style="max-width: 420px; line-height: 1.6">
+                          默认模式下，POC 验证会基于 Web 指纹识别结果进行匹配验证。<br />
+                          开启全量 POC 后，将不再依赖指纹识别，而是对目标遍历全部已启用 HTTP 类 POC。
+                        </div>
+                      </template>
+                      <icon-question-circle
+                        style="margin-left: 4px; color: var(--color-text-3); cursor: help"
+                      />
+                    </a-tooltip>
+                  </span>
+                </template>
+                <a-checkbox v-model="scanOptions.enable_poc_verify">
                   开启 POC 漏洞验证
-                  <span
-                    v-if="!scanOptions.enable_web_fingerprint"
-                    style="color: red; font-size: 12px; margin-left: 4px"
-                  >(需先开启 Web 指纹识别)</span>
                 </a-checkbox>
               </a-form-item>
             </a-col>
+      <a-col :span="8">
+        <a-form-item>
+        <template #label>
+          <span>
+          全量 POC 验证
+          <a-tooltip position="top">
+            <template #content>
+            <div style="max-width: 460px; line-height: 1.6">
+              启用后将不依赖 Web 指纹匹配，而是对扫描目标遍历所有已启用 HTTP 类 POC 模板进行验证。
+              适用于未知指纹、指纹缺失或希望做深度覆盖的场景。
+              该模式任务耗时和请求量会明显增加，建议优先用于高价值目标，并合理控制目标范围与并发。
+            </div>
+            </template>
+            <icon-question-circle
+            style="margin-left: 4px; color: var(--color-text-3); cursor: help"
+            />
+          </a-tooltip>
+          </span>
+        </template>
+        <a-checkbox
+          v-model="scanOptions.enable_full_poc_verify"
+          :disabled="!scanOptions.enable_poc_verify"
+        >
+          开启全量 POC 模式
+        </a-checkbox>
+        </a-form-item>
+      </a-col>
             <a-col :span="8">
-              <a-form-item label="目录扫描">
+              <a-form-item>
+                <template #label>
+                  <span>
+                    目录扫描
+                    <a-tooltip position="top">
+                      <template #content>
+                        <div style="max-width: 360px; line-height: 1.6">
+                          目录扫描依赖 gobuster 插件。<br />
+                          请先在插件管理中启用 gobuster，否则该选项会被禁用。
+                        </div>
+                      </template>
+                      <icon-question-circle
+                        style="margin-left: 4px; color: var(--color-text-3); cursor: help"
+                      />
+                    </a-tooltip>
+                  </span>
+                </template>
                 <a-checkbox v-model="scanOptions.enable_dir_scan" :disabled="!isGobusterEnabled">
                   启用 Web 目录/文件扫描
                   <span
@@ -173,7 +272,23 @@
               </a-form-item>
             </a-col>
             <a-col :span="8">
-              <a-form-item label="子域名枚举">
+              <a-form-item>
+                <template #label>
+                  <span>
+                    子域名枚举
+                    <a-tooltip position="top">
+                      <template #content>
+                        <div style="max-width: 360px; line-height: 1.6">
+                          子域名枚举依赖 gobuster 插件。<br />
+                          请先在插件管理中启用 gobuster，否则该选项会被禁用。
+                        </div>
+                      </template>
+                      <icon-question-circle
+                        style="margin-left: 4px; color: var(--color-text-3); cursor: help"
+                      />
+                    </a-tooltip>
+                  </span>
+                </template>
                 <a-checkbox
                   v-model="scanOptions.enable_subdomain_enum"
                   :disabled="!isGobusterEnabled"
@@ -189,7 +304,22 @@
           </a-row>
           <a-row :gutter="16">
             <a-col :span="8">
-              <a-form-item label="弱口令检测">
+              <a-form-item>
+                <template #label>
+                  <span>
+                    弱口令检测
+                    <a-tooltip position="top">
+                      <template #content>
+                        <div style="max-width: 360px; line-height: 1.6">
+                          主要对 mysql、rdp、ssh 等服务进行弱口令爆破检测。
+                        </div>
+                      </template>
+                      <icon-question-circle
+                        style="margin-left: 4px; color: var(--color-text-3); cursor: help"
+                      />
+                    </a-tooltip>
+                  </span>
+                </template>
                 <a-checkbox v-model="scanOptions.enable_weak_password">
                   启用服务弱口令暴力破解
                 </a-checkbox>
@@ -202,7 +332,26 @@
         <a-divider orientation="left">扫描参数</a-divider>
         <a-row :gutter="16">
           <a-col :span="6">
-            <a-form-item field="scan_options.ports" label="TCP 端口范围">
+            <a-form-item field="scan_options.ports">
+              <template #label>
+                <span>
+                  TCP 端口范围
+                  <a-tooltip position="top">
+                    <template #content>
+                      <div style="max-width: 420px; line-height: 1.6">
+                        支持以下写法：<br />
+                        1) top1000（扫描常见端口）<br />
+                        2) 80,443,8080（多个端口用英文逗号分隔）<br />
+                        3) 1-10000 或 1-65535（连续端口范围）<br />
+                        4) 22,80,443,8000-8100（可混合单端口和范围）
+                      </div>
+                    </template>
+                    <icon-question-circle
+                      style="margin-left: 4px; color: var(--color-text-3); cursor: help"
+                    />
+                  </a-tooltip>
+                </span>
+              </template>
               <a-input
                 v-model="scanOptions.ports"
                 placeholder="例如: top1000 或 80,443,8080"
@@ -211,7 +360,26 @@
             </a-form-item>
           </a-col>
           <a-col :span="6">
-            <a-form-item field="scan_options.udp_ports" label="UDP 端口范围">
+            <a-form-item field="scan_options.udp_ports">
+              <template #label>
+                <span>
+                  UDP 端口范围
+                  <a-tooltip position="top">
+                    <template #content>
+                      <div style="max-width: 420px; line-height: 1.6">
+                        支持以下写法：<br />
+                        1) udptop100（扫描常见 UDP 端口）<br />
+                        2) 53,67,68,123,161（多个端口用英文逗号分隔）<br />
+                        3) 1-10000 或 1-65535（连续端口范围）<br />
+                        4) 53,123,161,5000-5100（可混合单端口和范围）
+                      </div>
+                    </template>
+                    <icon-question-circle
+                      style="margin-left: 4px; color: var(--color-text-3); cursor: help"
+                    />
+                  </a-tooltip>
+                </span>
+              </template>
               <a-input
                 v-model="scanOptions.udp_ports"
                 placeholder="例如: udptop100 或 53,161"
@@ -304,6 +472,7 @@
 <script lang="ts" setup>
 import { ref, reactive, watch, onMounted } from 'vue'
 import { Message } from '@arco-design/web-vue'
+import { IconQuestionCircle } from '@arco-design/web-vue/es/icon'
 import { useRouter } from 'vue-router'
 import { createTask, getTopPorts, type ScanOptions, type CreateTaskRequest } from '@/api/task'
 import { getPluginList } from '@/api/plugin'
@@ -333,6 +502,7 @@ const scanOptions = reactive<ScanOptions>({
   enable_subdomain_enum: false,
   enable_dir_scan: false,
   enable_poc_verify: true,
+  enable_full_poc_verify: false,
   enable_port_scan: true,
   enable_udp_scan: true,
   udp_ports: 'udptop100',
@@ -352,6 +522,7 @@ const applyFullDefaults = () => {
   scanOptions.enable_port_scan = true
   scanOptions.enable_web_fingerprint = true
   scanOptions.enable_poc_verify = true
+  scanOptions.enable_full_poc_verify = false
   scanOptions.enable_weak_password = true
   scanOptions.enable_subdomain_enum = isGobusterEnabled.value
   scanOptions.enable_dir_scan = isGobusterEnabled.value
@@ -369,6 +540,7 @@ const applyQuickDefaults = () => {
   scanOptions.enable_port_scan = true
   scanOptions.enable_web_fingerprint = true
   scanOptions.enable_poc_verify = true
+  scanOptions.enable_full_poc_verify = false
   scanOptions.enable_dir_scan = false
   scanOptions.enable_subdomain_enum = false
   scanOptions.enable_weak_password = true
@@ -385,6 +557,7 @@ const applyCustomDefaults = () => {
   scanOptions.enable_port_scan = false
   scanOptions.enable_web_fingerprint = false
   scanOptions.enable_poc_verify = false
+  scanOptions.enable_full_poc_verify = false
   scanOptions.enable_dir_scan = false
   scanOptions.enable_subdomain_enum = false
   scanOptions.enable_weak_password = false
@@ -405,12 +578,11 @@ watch(
   }
 )
 
-// Web 指纹关闭时自动关闭 POC 验证
 watch(
-  () => scanOptions.enable_web_fingerprint,
+  () => scanOptions.enable_poc_verify,
   (enabled) => {
     if (!enabled) {
-      scanOptions.enable_poc_verify = false
+    scanOptions.enable_full_poc_verify = false
     }
   }
 )

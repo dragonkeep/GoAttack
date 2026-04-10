@@ -538,20 +538,20 @@
       >
     </div>
 
-    <!-- 标签和参考 -->
-    <div v-if="currentVuln.tags" class="detail-section">
+    <div v-if="parseListField(currentVuln.tags).length > 0" class="detail-section">
       <div class="detail-label">标签</div>
       <a-space wrap>
-        <a-tag v-for="tag in currentVuln.tags?.split(',').filter((t) => t)" :key="tag" color="orange" size="small">{{ tag.trim() }}</a-tag>
+        <a-tag v-for="tag in parseListField(currentVuln.tags)" :key="tag" color="orange" size="small">{{ tag }}</a-tag>
       </a-space>
     </div>
 
-    <div v-if="currentVuln.reference" class="detail-section">
+    <div v-if="parseListField(currentVuln.reference).length > 0" class="detail-section">
       <div class="detail-label">参考链接</div>
-      <div v-for="ref in currentVuln.reference?.split(',').filter((r) => r)" :key="ref">
-        <a-link :href="ref.trim()" target="_blank" style="font-size: 12px">{{ ref.trim() }}</a-link>
+      <div v-for="ref in parseListField(currentVuln.reference)" :key="ref">
+        <a-link :href="ref" target="_blank" style="font-size: 12px">{{ ref }}</a-link>
       </div>
     </div>
+
   </a-modal>
 </template>
 
@@ -768,23 +768,47 @@ const normalizeProgress = (progress: any) => {
   return result
 }
 
+const parseChinaDate = (dateStr: string) => {
+  if (!dateStr) return null
+  const normalized = String(dateStr).trim()
+  if (!normalized) return null
+
+  // 后端若返回无时区时间字符串，按中国时区解析，避免出现固定 8 小时偏差。
+  if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/.test(normalized)) {
+    const withT = normalized.replace(' ', 'T')
+    const dt = new Date(`${withT}+08:00`)
+    return Number.isNaN(dt.getTime()) ? null : dt
+  }
+
+  const dt = new Date(normalized)
+  return Number.isNaN(dt.getTime()) ? null : dt
+}
+
 const formatDateTime = (dateStr: string) => {
   if (!dateStr) return '-'
-  const date = new Date(dateStr)
-  if (Number.isNaN(date.getTime())) return '-'
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
-  const seconds = String(date.getSeconds()).padStart(2, '0')
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+  const date = parseChinaDate(dateStr)
+  if (!date) return '-'
+  const formatter = new Intl.DateTimeFormat('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
+  return formatter.format(date).replace(/\//g, '-')
 }
 
 const formatDuration = (start: string, end: string) => {
   if (!start) return '-'
-  const startTime = new Date(start).getTime()
-  const endTime = end ? new Date(end).getTime() : new Date().getTime()
+  const startDate = parseChinaDate(start)
+  const endDate = end ? parseChinaDate(end) : new Date()
+
+  if (!startDate) return '-'
+  const startTime = startDate.getTime()
+  const endTime = endDate ? endDate.getTime() : new Date().getTime()
 
   if (Number.isNaN(startTime)) return '-'
 
@@ -802,6 +826,28 @@ const formatDuration = (start: string, end: string) => {
   result += `${seconds}s`
 
   return result.trim()
+}
+
+const parseListField = (raw: unknown): string[] => {
+  if (raw === null || raw === undefined) return []
+  const text = String(raw).trim()
+  if (!text) return []
+
+  try {
+    const parsed = JSON.parse(text)
+    if (Array.isArray(parsed)) {
+      return parsed
+        .map((item) => String(item).trim())
+        .filter((item) => item.length > 0)
+    }
+  } catch {
+    // not json, fallback to delimiter split
+  }
+
+  return text
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0)
 }
 
 function startPolling() {

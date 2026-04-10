@@ -1,9 +1,9 @@
 package admin
 
 import (
+	"GoAttack/common/config"
 	"GoAttack/common/mysql"
 	"GoAttack/common/redis"
-	"crypto/rand"
 	"errors"
 	"fmt"
 	"os"
@@ -24,17 +24,8 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	r.POST("/user/upload", UploadAvatar)     // 上传头像
 }
 
-func GenerateJWTSecretBytes(bits int) ([]byte, error) {
-	key := make([]byte, bits/8)
-	_, err := rand.Read(key)
-	if err != nil {
-		return nil, err
-	}
-	return key, nil
-}
-
 // JWT密钥
-var jwtSecret, _ = GenerateJWTSecretBytes(256)
+var jwtSecret = []byte(config.JWTSecret)
 
 // LoginRequest 登录请求结构体
 type LoginRequest struct {
@@ -484,7 +475,7 @@ func UploadAvatar(c *gin.Context) {
 		return
 	}
 
-	// 生成访问URL（相对路径，为了兼容 Docker 部署和域名部署）
+	// 头像URL
 	avatarURL := fmt.Sprintf("/api/uploads/avatars/%s", filename)
 
 	// 更新数据库

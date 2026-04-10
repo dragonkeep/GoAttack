@@ -1,12 +1,9 @@
 package plugin
 
 import (
-	"GoAttack/common/log"
 	"GoAttack/common/mysql"
+	"GoAttack/service"
 	"net/http"
-	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -38,61 +35,7 @@ func SyncPlugins(c *gin.Context) {
 }
 
 func syncLocalPlugins() error {
-	pluginDir := "./service/plugins"
-	log.Info("Scanning plugin directory: %s", pluginDir)
-
-	entries, err := os.ReadDir(pluginDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			os.MkdirAll(pluginDir, 0755)
-			return nil
-		}
-		return err
-	}
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			pluginName := entry.Name()
-			pluginPath := filepath.Join(pluginDir, pluginName)
-
-			// 简单的版本提取或默认值
-			// 这里假设目录名为插件名，例如 gobuster
-			version := "1.0.0"
-			pluginType := "scanner"
-			description := "GoAttack 插件"
-
-			if strings.Contains(strings.ToLower(pluginName), "gobuster") {
-				pluginType = "scanner"
-				description = "目录扫描和子域名爆破工具"
-			}
-
-			extension := ""
-			if runtime.GOOS == "windows" {
-				extension = ".exe"
-			}
-
-			// 检查是否存在对应的执行文件
-			executable := filepath.Join(pluginPath, pluginName+extension)
-			if _, err := os.Stat(executable); err == nil {
-				// 文件存在，插入或更新到数据库
-				p := mysql.Plugin{
-					Name:        pluginName,
-					Version:     version,
-					Type:        pluginType,
-					Enabled:     true, // 默认开启
-					Description: description,
-					Path:        executable,
-				}
-				err := mysql.UpsertPlugin(p)
-				if err != nil {
-					log.Warn("Failed to upsert plugin %s: %v", pluginName, err)
-				} else {
-					log.Info("Synced plugin: %s", pluginName)
-				}
-			}
-		}
-	}
-	return nil
+	return service.SyncBuiltinPlugins()
 }
 
 // GetPlugins 获取插件列表

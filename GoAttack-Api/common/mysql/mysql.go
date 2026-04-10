@@ -16,7 +16,7 @@ var DB *sql.DB
 // InitDB 初始化数据库连接
 func InitDB() error {
 	// 1. 先不指定数据库连接，用于创建数据库
-	dsnWithoutDB := fmt.Sprintf("%s:%s@tcp(%s:%d)/?charset=utf8mb4&parseTime=True&loc=Local",
+	dsnWithoutDB := fmt.Sprintf("%s:%s@tcp(%s:%d)/?charset=utf8mb4&parseTime=True&loc=Asia%%2FShanghai",
 		config.MySQLUser,
 		config.MySQLPassword,
 		config.MySQLHost,
@@ -42,7 +42,7 @@ func InitDB() error {
 	tempDB.Close()
 
 	// 3. 连接到指定的数据库，并开启多语句支持以执行 init.sql
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local&multiStatements=true",
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Asia%%2FShanghai&multiStatements=true",
 		config.MySQLUser,
 		config.MySQLPassword,
 		config.MySQLHost,
@@ -57,6 +57,11 @@ func InitDB() error {
 
 	if err = DB.Ping(); err != nil {
 		return fmt.Errorf("ping mysql failed: %v", err)
+	}
+
+	// 统一当前会话时区，确保 NOW()/TIMESTAMP 与中国时区一致。
+	if _, err = DB.Exec("SET time_zone = '+08:00'"); err != nil {
+		return fmt.Errorf("set mysql session time_zone failed: %v", err)
 	}
 
 	// 4. 检查是否需要初始化表结构

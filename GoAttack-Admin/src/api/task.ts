@@ -21,6 +21,7 @@ export interface ScanOptions {
   enable_dir_scan: boolean // 是否进行目录扫描
   enable_web_fingerprint?: boolean // 是否进行Web指纹识别（自定义扫描用）
   enable_poc_verify?: boolean // 是否进行POC漏洞验证（自定义扫描用）
+  enable_full_poc_verify?: boolean // 是否进行全量POC验证（不依赖指纹）
 
   // 反连服务
   enable_reverse: boolean // 是否启用反连服务

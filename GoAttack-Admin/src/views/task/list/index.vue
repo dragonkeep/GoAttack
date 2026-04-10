@@ -243,16 +243,36 @@ const cancelBatchMode = () => {
   selectedKeys.value = []
 }
 
+const parseChinaDate = (dateStr: string) => {
+  if (!dateStr) return null
+  const normalized = String(dateStr).trim()
+  if (!normalized) return null
+
+  if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/.test(normalized)) {
+    const withT = normalized.replace(' ', 'T')
+    const dt = new Date(`${withT}+08:00`)
+    return Number.isNaN(dt.getTime()) ? null : dt
+  }
+
+  const dt = new Date(normalized)
+  return Number.isNaN(dt.getTime()) ? null : dt
+}
+
 const formatDateTime = (dateStr: string) => {
   if (!dateStr) return '-'
-  const date = new Date(dateStr)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
-  const seconds = String(date.getSeconds()).padStart(2, '0')
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+  const date = parseChinaDate(dateStr)
+  if (!date) return '-'
+  const formatter = new Intl.DateTimeFormat('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
+  return formatter.format(date).replace(/\//g, '-')
 }
 
 const getScanTypeName = (type: string) => {
@@ -292,8 +312,8 @@ const applySorting = (data: ScanTask[]) => {
 
   if (sortState.created_at) {
     sorted.sort((a, b) => {
-      const dateA = new Date(a.created_at).getTime()
-      const dateB = new Date(b.created_at).getTime()
+      const dateA = parseChinaDate(a.created_at)?.getTime() || 0
+      const dateB = parseChinaDate(b.created_at)?.getTime() || 0
       return sortState.created_at === 'ascend' ? dateA - dateB : dateB - dateA
     })
   }

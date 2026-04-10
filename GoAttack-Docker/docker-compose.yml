@@ -19,6 +19,7 @@ services:
       - REDIS_PORT=6379
       - REDIS_PASSWORD=
       - REDIS_DB=0
+      - TZ=Asia/Shanghai
     depends_on:
       mysql:
         condition: service_healthy
@@ -38,6 +39,8 @@ services:
     restart: always
     ports:
       - "80:80"
+    environment:
+      - TZ=Asia/Shanghai
     depends_on:
       - goattack-api
     networks:
@@ -50,6 +53,8 @@ services:
     environment:
       - MYSQL_ROOT_PASSWORD=goattack
       - MYSQL_DATABASE=goattack
+      - TZ=Asia/Shanghai
+    command: --default-time-zone=+08:00
     ports:
       - "3306:3306"
     volumes:
@@ -69,6 +74,8 @@ services:
     restart: always
     ports:
       - "6379:6379"
+    environment:
+      - TZ=Asia/Shanghai
     volumes:
       - redis-data:/data
     networks:

@@ -255,7 +255,7 @@
       <a-card class="general-card report-footer" style="margin-top: 16px">
         <div class="footer-content">
           <icon-check-circle :size="20" style="margin-right: 8px; color: var(--color-primary-6)" />
-          <span>本报告由 GoAttack 安全扫描系统自动生成 · {{ new Date().toLocaleString('zh-CN') }}</span>
+          <span>本报告由 GoAttack 安全扫描系统自动生成 · {{ formatNowChina() }}</span>
         </div>
       </a-card>
     </template>
@@ -312,18 +312,50 @@ const portList = ref<any[]>([])
 const webList = ref<any[]>([])
 const vulnList = ref<any[]>([])
 
+const parseChinaDate = (dateStr: string) => {
+  if (!dateStr) return null
+  const normalized = String(dateStr).trim()
+  if (!normalized) return null
+
+  if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/.test(normalized)) {
+    const withT = normalized.replace(' ', 'T')
+    const dt = new Date(`${withT}+08:00`)
+    return Number.isNaN(dt.getTime()) ? null : dt
+  }
+
+  const dt = new Date(normalized)
+  return Number.isNaN(dt.getTime()) ? null : dt
+}
+
+const formatChinaDateTime = (date: Date) => {
+  return new Intl.DateTimeFormat('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).format(date)
+}
+
+const formatNowChina = () => formatChinaDateTime(new Date())
+
 const formatDateTime = (dateStr: string) => {
   if (!dateStr) return '-'
-  const d = new Date(dateStr)
-  if (Number.isNaN(d.getTime())) return '-'
-  return d.toLocaleString('zh-CN', { hour12: false })
+  const d = parseChinaDate(dateStr)
+  if (!d) return '-'
+  return formatChinaDateTime(d)
 }
 
 const formatDuration = (start: string, end: string) => {
   if (!start) return '-'
-  const s = new Date(start).getTime()
-  if (Number.isNaN(s)) return '-'
-  const e = end ? new Date(end).getTime() : Date.now()
+  const startDate = parseChinaDate(start)
+  if (!startDate) return '-'
+  const endDate = end ? parseChinaDate(end) : new Date()
+  const s = startDate.getTime()
+  const e = endDate ? endDate.getTime() : Date.now()
   const sec = Math.floor((e - s) / 1000)
   if (sec < 0) return '0 秒'
   if (sec < 60) return `${sec} 秒`
@@ -512,7 +544,7 @@ a{color:#3491fa;text-decoration:none}
       : ''
   }
 
-  <div class="footer">本报告由 GoAttack 安全扫描系统自动生成 &nbsp;&middot;&nbsp; ${new Date().toLocaleString('zh-CN')}</div>
+  <div class="footer">本报告由 GoAttack 安全扫描系统自动生成 &nbsp;&middot;&nbsp; ${formatNowChina()}</div>
 </div>
 </body></html>`
 }

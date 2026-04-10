@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+var chinaLocation = time.FixedZone("CST", 8*3600)
+
 // StartTaskScheduler 启动定时任务调度器
 func StartTaskScheduler() {
 	go func() {
@@ -29,7 +31,7 @@ func checkAndRunScheduledTasks() {
 	}
 	defer rows.Close()
 
-	now := time.Now()
+	now := time.Now().In(chinaLocation)
 	for rows.Next() {
 		var task model.Task
 		var description, options sql.NullString
@@ -57,7 +59,7 @@ func checkAndRunScheduledTasks() {
 			// 如果设置了调度时间
 			if opts.ScheduledTime != "" {
 				// 尝试解析，例如: "2026-03-01 12:00:00" 或者 "2026-03-01T12:00:00Z"
-				scheduledTime, err := time.Parse("2006-01-02 15:04:05", opts.ScheduledTime)
+				scheduledTime, err := time.ParseInLocation("2006-01-02 15:04:05", opts.ScheduledTime, chinaLocation)
 				if err != nil {
 					// 尝试 ISO 格式
 					scheduledTime, err = time.Parse(time.RFC3339, opts.ScheduledTime)
@@ -65,6 +67,7 @@ func checkAndRunScheduledTasks() {
 						log.Warn("定时任务时间格式错误 task_id=%d, scheduled_time=%s: %v", task.ID, opts.ScheduledTime, err)
 						continue
 					}
+					scheduledTime = scheduledTime.In(chinaLocation)
 				}
 
 				if now.After(scheduledTime) || now.Equal(scheduledTime) {

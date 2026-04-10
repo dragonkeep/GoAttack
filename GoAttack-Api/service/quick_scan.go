@@ -5,7 +5,7 @@ import (
 	"GoAttack/common/mysql"
 	redisdb "GoAttack/common/redis"
 	servicecommon "GoAttack/service/common"
-	"GoAttack/service/plugins"
+	"GoAttack/service/plugincore"
 	scanbrute "GoAttack/service/scan_brute"
 	scanhost "GoAttack/service/scan_host"
 	scanport "GoAttack/service/scan_port"
@@ -256,6 +256,7 @@ type customScanOptions struct {
 	EnablePortScan       bool
 	EnableWebFingerprint bool
 	EnablePocVerify      bool
+	EnableFullPocVerify  bool
 	EnableDirScan        bool
 	EnableSubdomainEnum  bool
 	EnableWeakPassword   bool
@@ -274,6 +275,7 @@ func parseCustomScanOptions(options string) customScanOptions {
 		EnablePortScan:       true,
 		EnableWebFingerprint: true,
 		EnablePocVerify:      true,
+		EnableFullPocVerify:  false,
 		EnableDirScan:        false,
 		EnableSubdomainEnum:  false,
 		EnableWeakPassword:   false,
@@ -310,6 +312,9 @@ func parseCustomScanOptions(options string) customScanOptions {
 	}
 	if v, ok := raw["enable_poc_verify"].(bool); ok {
 		opts.EnablePocVerify = v
+	}
+	if v, ok := raw["enable_full_poc_verify"].(bool); ok {
+		opts.EnableFullPocVerify = v
 	}
 	if v, ok := raw["enable_dir_scan"].(bool); ok {
 		opts.EnableDirScan = v
@@ -491,54 +496,13 @@ func ExecuteCustomScan(ctx context.Context, taskID int, target string, options s
 		redisProgress.Message = "Running directory scan..."
 		redisdb.UpdateTaskProgress(taskID, redisProgress)
 
-		ipToTargets := make(map[string][]*servicecommon.Target)
-		for _, t := range scanTargets {
-			if t.IP != "" {
-				ipToTargets[t.IP] = append(ipToTargets[t.IP], t)
-			}
-		}
-
-		rows, err := mysql.GetHTTPPortsByTaskID(taskID)
-		if err == nil {
-			defer rows.Close()
-			for rows.Next() {
-				var id int64
-				var ip string
-				var port int
-				var protocol string
-				var serviceName string
-				if err := rows.Scan(&id, &ip, &port, &protocol, &serviceName); err == nil {
-					hostToUse := ip
-					if tList, ok := ipToTargets[ip]; ok && len(tList) > 0 {
-						for _, t := range tList {
-							if t.Host != "" && t.Host != t.IP {
-								hostToUse = t.Host
-								break
-							}
-						}
-						if hostToUse == ip {
-							hostToUse = tList[0].Host
-						}
-					}
-					scheme := "http"
-					if protocol == "https" || port == 443 || port == 8443 {
-						scheme = "https"
-					}
-					targetUrl := fmt.Sprintf("%s://%s:%d", scheme, hostToUse, port)
-					_ = plugins.RunGobuster(ctx, taskID, targetUrl, "dir")
-				}
-			}
-		} else {
-			for _, t := range scanTargets {
-				targetUrl := t.Original
-				if t.Port > 0 {
-					targetUrl = fmt.Sprintf("%s:%d", t.Host, t.Port)
-				} else if targetUrl == "" {
-					targetUrl = t.Host
-				}
-				_ = plugins.RunGobuster(ctx, taskID, targetUrl, "dir")
-			}
-		}
+		_ = plugincore.RunStage(ctx, &plugincore.ExecContext{
+			TaskID:     taskID,
+			TaskType:   "custom",
+			TaskTarget: target,
+			Stage:      plugincore.StageDirScan,
+			Targets:    buildDirScanTargets(taskID, scanTargets),
+		})
 
 		redisProgress.Progress = stageStart + stageWidth
 		redisProgress.Message = "Directory scan completed"
@@ -570,7 +534,20 @@ func ExecuteCustomScan(ctx context.Context, taskID int, target string, options s
 
 	// ── Stage: POC Verify ──
 	if opts.EnablePocVerify {
-		pocTargets, pocTemplateMap, err := buildPocTargetsFromFingerprints(taskID)
+		var (
+			pocTargets      map[string][]int
+			pocTemplateMap  map[string]*mysql.PocTemplate
+			err             error
+		)
+
+		if opts.EnableFullPocVerify {
+			redisProgress.Message = "Running full POC verification (all active templates)..."
+			redisdb.UpdateTaskProgress(taskID, redisProgress)
+			pocTargets, pocTemplateMap, err = buildPocTargetsWithAllTemplates(target, scanTargets)
+		} else {
+			pocTargets, pocTemplateMap, err = buildPocTargetsFromFingerprints(taskID)
+		}
+
 		if err != nil {
 			log.Info("[CustomScan] Failed to build POC targets: %v", err)
 		} else if len(pocTargets) > 0 {
@@ -578,7 +555,11 @@ func ExecuteCustomScan(ctx context.Context, taskID int, target string, options s
 				log.Info("[CustomScan] POC verification warning: %v", err)
 			}
 		} else {
-			redisProgress.Message = "No matched POCs from fingerprints, skip verification"
+			if opts.EnableFullPocVerify {
+				redisProgress.Message = "No active HTTP POCs or valid targets, skip full POC verification"
+			} else {
+				redisProgress.Message = "No matched POCs from fingerprints, skip verification"
+			}
 			redisdb.UpdateTaskProgress(taskID, redisProgress)
 		}
 		stageStart += stageWidth
@@ -602,9 +583,13 @@ func ExecuteCustomScan(ctx context.Context, taskID int, target string, options s
 	if opts.EnableSubdomainEnum {
 		redisProgress.Message = "Running subdomain enumeration..."
 		redisdb.UpdateTaskProgress(taskID, redisProgress)
-		for _, t := range scanTargets {
-			_ = plugins.RunGobuster(ctx, taskID, t.Host, "dns")
-		}
+		_ = plugincore.RunStage(ctx, &plugincore.ExecContext{
+			TaskID:     taskID,
+			TaskType:   "custom",
+			TaskTarget: target,
+			Stage:      plugincore.StageSubdomainEnum,
+			Targets:    buildSubdomainTargets(scanTargets),
+		})
 		redisProgress.Progress = stageStart + stageWidth
 		redisProgress.Message = "Subdomain enumeration completed"
 		redisdb.UpdateTaskProgress(taskID, redisProgress)

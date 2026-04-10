@@ -8,9 +8,13 @@ import (
 	"GoAttack/common/redis"
 	"GoAttack/service"
 	"fmt"
+	"time"
 )
 
 func main() {
+	// 统一进程默认时区为中国时区，避免不同运行环境出现 8 小时偏差。
+	time.Local = time.FixedZone("CST", 8*3600)
+
 	// 初始化日志系统
 	log.InitLogger()
 	defer log.Close()
@@ -41,6 +45,10 @@ func main() {
 
 	fmt.Println("Starting GoAttack API Server...")
 	log.Info("启动 GoAttack API 服务器，监听端口: 3000")
+
+	if err := service.SyncBuiltinPlugins(); err != nil {
+		log.Warn("同步内置插件失败: %v", err)
+	}
 
 	// 启动定时任务调度器
 	service.StartTaskScheduler()

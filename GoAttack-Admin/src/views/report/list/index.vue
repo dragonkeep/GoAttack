@@ -84,11 +84,35 @@ const loading = ref(false)
 const reportList = ref<any[]>([])
 const filterType = ref('')
 
+const parseChinaDate = (dateStr: string) => {
+  if (!dateStr) return null
+  const normalized = String(dateStr).trim()
+  if (!normalized) return null
+
+  if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/.test(normalized)) {
+    const withT = normalized.replace(' ', 'T')
+    const dt = new Date(`${withT}+08:00`)
+    return Number.isNaN(dt.getTime()) ? null : dt
+  }
+
+  const dt = new Date(normalized)
+  return Number.isNaN(dt.getTime()) ? null : dt
+}
+
 const formatDateTime = (dateStr: string) => {
   if (!dateStr) return '-'
-  const d = new Date(dateStr)
-  if (Number.isNaN(d.getTime())) return '-'
-  return d.toLocaleString('zh-CN', { hour12: false })
+  const d = parseChinaDate(dateStr)
+  if (!d) return '-'
+  return new Intl.DateTimeFormat('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).format(d)
 }
 
 const getScanTypeName = (type: string) => {

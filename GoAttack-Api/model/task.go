@@ -30,6 +30,9 @@ type ScanOptions struct {
 	// 端口扫描
 	Ports            string `json:"ports"`              // 端口范围，如 "1-1000" 或 "80,443,8080"
 	EnableServiceDet bool   `json:"enable_service_det"` // 是否进行服务识别
+	EnablePortScan   bool   `json:"enable_port_scan"`   // 是否进行 TCP 端口扫描（自定义扫描）
+	EnableUDPScan    bool   `json:"enable_udp_scan"`    // 是否进行 UDP 端口扫描（自定义/全量）
+	UDPPorts         string `json:"udp_ports"`          // UDP 扫描端口范围
 
 	// 认证攻击
 	EnableWeakPassword bool `json:"enable_weak_password"` // 是否进行弱口令猜解
@@ -37,6 +40,9 @@ type ScanOptions struct {
 	// Web 扫描
 	EnableSubdomainEnum bool `json:"enable_subdomain_enum"` // 是否进行子域名枚举
 	EnableDirScan       bool `json:"enable_dir_scan"`       // 是否进行目录扫描
+	EnableWebFingerprint bool `json:"enable_web_fingerprint"` // 是否进行 Web 指纹识别（自定义扫描）
+	EnablePocVerify      bool `json:"enable_poc_verify"`      // 是否进行 POC 漏洞验证（自定义扫描）
+	EnableFullPocVerify  bool `json:"enable_full_poc_verify"` // 是否启用全量 POC 验证（不依赖指纹）
 
 	// 反连服务
 	EnableReverse bool `json:"enable_reverse"` // 是否启用反连服务
