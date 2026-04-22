@@ -113,6 +113,7 @@ func autoMigrate() {
 			INDEX idx_username (username)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='通知已读时间追踪表'`,
 		`ALTER TABLE poc_template MODIFY COLUMN category VARCHAR(625) COMMENT '分类：cves/vulnerabilities/exposures/misconfiguration等'`,
+		`ALTER TABLE task MODIFY COLUMN target LONGTEXT NOT NULL COMMENT '扫描目标（IP/域名/URL/CIDR，支持多行）'`,
 	}
 	for _, s := range sqls {
 		if _, err := DB.Exec(s); err != nil {

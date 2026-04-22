@@ -160,7 +160,7 @@ func ExecuteAliveScan(ctx context.Context, taskID int, target string, options st
 		TotalTargets:   0,
 		ScannedTargets: 0,
 		FoundAssets:    0,
-		CurrentTarget:  target,
+		CurrentTarget:  "",
 		StartTime:      startTime,
 		Message:        "正在解析目标...",
 	}
@@ -377,7 +377,7 @@ func ExecutePortScan(ctx context.Context, taskID int, target string, options str
 		TotalTargets:   0,
 		ScannedTargets: 0,
 		FoundAssets:    0,
-		CurrentTarget:  target,
+		CurrentTarget:  "",
 		StartTime:      startTime,
 		Message:        "正在进行端口扫描及指纹识别...",
 	}
@@ -687,7 +687,7 @@ func ExecuteWebScan(ctx context.Context, taskID int, target string, options stri
 		TaskID:        taskID,
 		Status:        "running",
 		Progress:      0,
-		CurrentTarget: target,
+		CurrentTarget: "",
 		StartTime:     startTime,
 		Message:       "正在初始化 Web 扫描...",
 	}

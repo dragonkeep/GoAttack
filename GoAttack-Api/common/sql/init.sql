@@ -100,7 +100,7 @@ INSERT IGNORE INTO `user` (
 CREATE TABLE IF NOT EXISTS `task` (
     `id` INT AUTO_INCREMENT PRIMARY KEY COMMENT '任务ID',
     `name` VARCHAR(100) NOT NULL COMMENT '任务名称',
-    `target` VARCHAR(255) NOT NULL COMMENT '扫描目标（IP/域名/URL/CIDR）',
+    `target` LONGTEXT NOT NULL COMMENT '扫描目标（IP/域名/URL/CIDR，支持多行）',
     `type` VARCHAR(20) NOT NULL COMMENT '扫描类型: alive/port/web/vuln',
     `status` VARCHAR(20) DEFAULT 'pending' COMMENT '任务状态: pending/running/completed/failed/stopped',
     `progress` INT DEFAULT 0 COMMENT '进度百分比（0-100）',

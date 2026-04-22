@@ -35,6 +35,7 @@ func RegisterRoutes(r *gin.RouterGroup) {
 		// POC 验证结果管理
 		poc.GET("/verify-results", handler.GetPocVerifyResultList)               // 获取验证结果列表
 		poc.GET("/verify-results/:id", handler.GetPocVerifyResultDetail)         // 获取验证结果详情
+		poc.DELETE("/verify-results/clear", handler.ClearPocVerifyResults)       // 清空所有验证结果
 		poc.DELETE("/verify-results/:id", handler.DeletePocVerifyResult)         // 删除验证结果
 		poc.DELETE("/verify-results/batch", handler.BatchDeletePocVerifyResults) // 批量删除验证结果
 	}

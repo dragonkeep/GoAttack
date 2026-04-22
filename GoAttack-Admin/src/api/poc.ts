@@ -238,3 +238,8 @@ export function deletePocVerifyResult(id: number): UnwrappedResponse<any> {
 export function batchDeletePocVerifyResults(ids: number[]): UnwrappedResponse<any> {
   return axios.delete('/api/poc/verify-results/batch', { data: { ids } }) as any
 }
+
+// 清空所有 POC 验证结果
+export function clearPocVerifyResults(): UnwrappedResponse<any> {
+  return axios.delete('/api/poc/verify-results/clear') as any
+}

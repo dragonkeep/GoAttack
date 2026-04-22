@@ -221,6 +221,16 @@ func BatchDeletePocVerifyResults(ids []int64) error {
 	return nil
 }
 
+// ClearPocVerifyResults 清空所有验证结果
+func ClearPocVerifyResults() error {
+	query := "DELETE FROM poc_verify_result"
+	_, err := DB.Exec(query)
+	if err != nil {
+		return fmt.Errorf("清空验证结果失败: %v", err)
+	}
+	return nil
+}
+
 // UpdatePocVerifyResult 更新POC验证结果
 func UpdatePocVerifyResult(result *PocVerifyResult) error {
 	// 序列化 ExtractedData

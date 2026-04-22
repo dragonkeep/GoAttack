@@ -848,3 +848,21 @@ func BatchDeletePocVerifyResults(c *gin.Context) {
 		"data": nil,
 	})
 }
+
+// ClearPocVerifyResults 清空所有验证结果
+func ClearPocVerifyResults(c *gin.Context) {
+	if err := mysql.ClearPocVerifyResults(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code": 50000,
+			"msg":  "清空失败: " + err.Error(),
+			"data": nil,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 20000,
+		"msg":  "清空成功",
+		"data": nil,
+	})
+}

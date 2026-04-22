@@ -216,7 +216,7 @@ import {
   verifyPoc,
   getPocVerifyResults,
   searchPocTemplates,
-  batchDeletePocVerifyResults,
+  clearPocVerifyResults,
   PocTemplate,
   PocVerifyResultRecord,
 } from '@/api/poc'
@@ -570,25 +570,17 @@ const clearResults = async () => {
   }
 
   try {
-    // 收集所有结果的ID
-    const ids = results.value.map((r) => r.id).filter((id): id is number => id !== undefined)
-
-    if (ids.length === 0) {
-      Message.warning('没有可删除的记录')
-      return
-    }
-
     // 确认删除
     Modal.warning({
       title: '确认清空',
-      content: `确定要清空所有 ${ids.length} 条验证结果吗？此操作将从数据库中永久删除这些记录，不可恢复！`,
+      content: '确定要清空所有验证结果吗？此操作将从数据库中永久删除全部历史记录，不可恢复！',
       okText: '确定清空',
       cancelText: '取消',
       onOk: async () => {
         try {
-          // 调用批量删除API
-          await batchDeletePocVerifyResults(ids)
-          Message.success(`成功删除 ${ids.length} 条验证结果`)
+          // 调用后端全量清空 API
+          await clearPocVerifyResults()
+          Message.success('验证结果已全部清空')
           // 清空前端显示
           results.value = []
         } catch (err) {

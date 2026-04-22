@@ -77,7 +77,7 @@ func ExecuteFullScan(ctx context.Context, taskID int, target string, options str
 		TotalTargets:   0,
 		ScannedTargets: 0,
 		FoundAssets:    0,
-		CurrentTarget:  target,
+		CurrentTarget:  "",
 		StartTime:      startTime,
 		Message:        "Initializing full scan...",
 	}

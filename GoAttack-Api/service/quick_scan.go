@@ -82,7 +82,7 @@ func ExecuteQuickScan(ctx context.Context, taskID int, target string, options st
 		TaskID:        taskID,
 		Status:        "running",
 		Progress:      0,
-		CurrentTarget: target,
+		CurrentTarget: "",
 		StartTime:     startTime,
 		Message:       "Initializing quick scan...",
 	}
@@ -356,7 +356,7 @@ func ExecuteCustomScan(ctx context.Context, taskID int, target string, options s
 		TaskID:        taskID,
 		Status:        "running",
 		Progress:      0,
-		CurrentTarget: target,
+		CurrentTarget: "",
 		StartTime:     startTime,
 		Message:       "Initializing custom scan...",
 	}
