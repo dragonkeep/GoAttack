@@ -10,6 +10,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"os"
+	"os/exec"
 	"sort"
 	"strconv"
 	"strings"
@@ -19,6 +21,28 @@ import (
 	"github.com/chromedp/chromedp"
 	"github.com/gin-gonic/gin"
 )
+
+func resolveChromeExecPath() string {
+	if path := os.Getenv("CHROME_PATH"); path != "" {
+		return path
+	}
+	if path := os.Getenv("CHROMEDP_EXEC_PATH"); path != "" {
+		return path
+	}
+
+	for _, candidate := range []string{
+		"chromium-browser",
+		"chromium",
+		"google-chrome-stable",
+		"google-chrome",
+	} {
+		if path, err := exec.LookPath(candidate); err == nil {
+			return path
+		}
+	}
+
+	return "chromium-browser"
+}
 
 // RegisterRoutes 注册任务管理相关的所有路由
 func RegisterRoutes(r *gin.RouterGroup) {
@@ -1129,6 +1153,7 @@ func ExportPDF(c *gin.Context) {
 	}
 
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.ExecPath(resolveChromeExecPath()),
 		chromedp.Flag("headless", true),
 		chromedp.Flag("disable-gpu", true),
 		chromedp.Flag("no-sandbox", true),

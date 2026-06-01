@@ -20,9 +20,10 @@ RUN CGO_ENABLED=1 go build -trimpath -ldflags="-w -s" -o goattack main.go
 # Stage 3: Final image
 FROM alpine:3.19
 WORKDIR /app
-RUN apk add --no-cache nmap nmap-scripts tzdata libpcap
+RUN apk add --no-cache nmap nmap-scripts tzdata libpcap chromium nss freetype harfbuzz ca-certificates fontconfig font-noto-cjk ttf-freefont && fc-cache -f
 
 ENV TZ=Asia/Shanghai
+ENV CHROME_PATH=/usr/bin/chromium-browser
 RUN mkdir -p /app/logs /app/uploads /app/data /app/common/sql /app/service/plugins/gobuster
 
 COPY --from=stage-api /app/goattack .

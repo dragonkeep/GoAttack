@@ -49,11 +49,11 @@
                 <template #content>
                   <a-doption value="html">
                     <template #icon><icon-code /></template>
-                    导出 HTML (.html)
+                    导出 HTML
                   </a-doption>
                   <a-doption value="pdf">
                     <template #icon><icon-file /></template>
-                    导出 PDF (打印)
+                    导出 PDF
                   </a-doption>
                 </template>
               </a-dropdown>
@@ -448,7 +448,7 @@ function buildHTMLReport(): string {
 <title>安全扫描报告 - ${escHtml(reportData.taskName)}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:#f2f3f5;color:#1d2129;font-size:14px;line-height:1.5; -webkit-print-color-adjust: exact; print-color-adjust: exact;}
+body{font-family:"Noto Sans CJK SC","PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Helvetica Neue",Arial,sans-serif;background:#f2f3f5;color:#1d2129;font-size:14px;line-height:1.5; -webkit-print-color-adjust: exact; print-color-adjust: exact;}
 .page{max-width:1000px;margin:0 auto;padding:40px;background:#fff;}
 .report-cover{background:linear-gradient(135deg,#0052D9 0%,#002B70 100%);color:#fff;padding:48px;border-radius:12px;margin-bottom:32px;box-shadow:0 8px 20px rgba(0,82,217,0.15);page-break-inside:avoid;break-inside:avoid;}
 .report-cover h1{font-size:32px;margin-bottom:12px;display:flex;align-items:center;gap:12px;}
@@ -457,7 +457,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
 .section-title{font-size:18px;font-weight:600;color:#1d2129;margin-bottom:24px;padding-left:12px;border-left:4px solid #0052D9;line-height:1.2;}
 .stat-row{display:flex;gap:20px;margin-bottom:24px;page-break-inside:avoid;break-inside:avoid;}
 .stat-box{flex:1;background:#f7f8fa;border-radius:8px;padding:24px;text-align:center;border:1px solid #e5e6eb;}
-.stat-box .val{font-size:36px;font-weight:700;color:var(--c);font-family:system-ui,-apple-system;}
+.stat-box .val{font-size:36px;font-weight:700;color:var(--c);font-family:"Noto Sans CJK SC","PingFang SC","Microsoft YaHei",sans-serif;}
 .stat-box .lbl{font-size:14px;color:#4e5969;margin-top:8px;font-weight:500;}
 table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;border:1px solid #e5e6eb;border-radius:8px;overflow:hidden;}
 th{background:#f7f8fa;padding:12px 16px;text-align:left;font-weight:600;color:#1d2129;border-bottom:1px solid #e5e6eb;}
